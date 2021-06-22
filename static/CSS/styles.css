@@ -1,0 +1,12 @@
+.room-image {
+    max-width: 50%;
+}
+
+/* After notie styles are applied to DOM: */
+.notie-container {
+    box-shadow: none;
+}
+
+.datepicker {
+    z-index: 10000;
+}
