@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/alexedwards/scs/v2"
-	"github.com/sunil206b/smart_booking/pkg/config"
-	"github.com/sunil206b/smart_booking/pkg/handlers"
-	"github.com/sunil206b/smart_booking/pkg/render"
+	"github.com/sunil206b/smart_booking/internal/config"
+	"github.com/sunil206b/smart_booking/internal/handlers"
+	"github.com/sunil206b/smart_booking/internal/render"
 	"log"
 	"net/http"
 	"time"
@@ -12,7 +12,7 @@ import (
 
 var (
 	appConfig config.AppConfig
-	session *scs.SessionManager
+	session   *scs.SessionManager
 )
 
 func main() {
@@ -50,5 +50,6 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout: 15 * time.Second,
 	}
+	log.Printf("server will be running on port %v\n", 8080)
 	log.Fatalln(srv.ListenAndServe())
 }

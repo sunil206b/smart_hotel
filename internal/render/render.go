@@ -3,8 +3,9 @@ package render
 import (
 	"bytes"
 	"errors"
-	"github.com/sunil206b/smart_booking/pkg/config"
-	"github.com/sunil206b/smart_booking/pkg/models"
+	"github.com/justinas/nosurf"
+	"github.com/sunil206b/smart_booking/internal/config"
+	"github.com/sunil206b/smart_booking/internal/models"
 	"html/template"
 	"log"
 	"net/http"
@@ -20,7 +21,7 @@ func NewTemplates(a *config.AppConfig) {
 }
 
 // RenderTemplate function will load the html files from the specified location and parses
-func RenderTemplate(w http.ResponseWriter, tmpl string, data *models.TemplateData) {
+func RenderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, data *models.TemplateData) {
 	var tc map[string]*template.Template
 	if appConfig.UseCache {
 		tc = appConfig.TemplateCache
@@ -32,7 +33,7 @@ func RenderTemplate(w http.ResponseWriter, tmpl string, data *models.TemplateDat
 		log.Fatalf("Template %v not exisat in the template cache\n", tmpl)
 	}
 	buf := new(bytes.Buffer)
-	AddDefaultData(data)
+	AddDefaultData(data, r)
 	err := t.Execute(buf, data)
 	if err != nil {
 		log.Printf("Failed to read data from cache buffer:  %v\n", err.Error())
@@ -72,6 +73,6 @@ func CreateTemplateCache() (map[string]*template.Template, error) {
 	return myCache, nil
 }
 
-func AddDefaultData(data *models.TemplateData) {
-
+func AddDefaultData(data *models.TemplateData, r *http.Request) {
+	data.CSRFToken = nosurf.Token(r)
 }
