@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sunil206b/smart_booking/internal/config"
+	"github.com/sunil206b/smart_booking/internal/forms"
 	"github.com/sunil206b/smart_booking/internal/models"
 	"github.com/sunil206b/smart_booking/internal/render"
 	"log"
@@ -88,9 +89,47 @@ func (rh *RouteHandler) AvailabilityJSON(w http.ResponseWriter, r *http.Request)
 	w.Write(out)
 }
 
-// Reservations renders the contact page
-func (rh *RouteHandler) Reservations(w http.ResponseWriter, r *http.Request) {
-	render.RenderTemplate(w, r, "make-reservation.page.tmpl", &models.TemplateData{})
+// Reservation renders the contact page
+func (rh *RouteHandler) Reservation(w http.ResponseWriter, r *http.Request) {
+	var emptyReservation models.Reservation
+	data := make(map[string]interface{})
+	data["reservation"] = emptyReservation
+	render.RenderTemplate(w, r, "make-reservation.page.tmpl", &models.TemplateData{
+		Form: forms.New(nil),
+		Data: data,
+	})
+}
+
+// PostReservation handles the posting of a reservation form
+func (rh *RouteHandler) PostReservation(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	reservation := models.Reservation{
+		FirstName: r.Form.Get("firstName"),
+		LastName: r.Form.Get("lastName"),
+		Email: r.Form.Get("email"),
+		Phone: r.Form.Get("phone"),
+	}
+
+	form := forms.New(r.PostForm)
+
+	//form.Has("firstName", r)
+	form.Required("firstName", "lastName", "email")
+
+	if !form.Valid() {
+		data := make(map[string]interface{})
+		data["reservation"] = reservation
+
+		render.RenderTemplate(w, r, "make-reservation.page.tmpl", &models.TemplateData{
+			Form: form,
+			Data: data,
+		})
+		return
+	}
 }
 
 // Contact renders the contact page
