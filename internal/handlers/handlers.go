@@ -77,12 +77,12 @@ func (rh *RouteHandler) PostAvailability(w http.ResponseWriter, r *http.Request)
 // AvailabilityJSON receives form data from the request and send JSON response
 func (rh *RouteHandler) AvailabilityJSON(w http.ResponseWriter, r *http.Request) {
 	resp := jsonResponse{
-		OK: true,
+		OK:      true,
 		Message: "Available",
 	}
 
 	out, err := json.MarshalIndent(resp, "", "     ")
-	if err != nil{
+	if err != nil {
 		log.Println(err)
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -110,15 +110,17 @@ func (rh *RouteHandler) PostReservation(w http.ResponseWriter, r *http.Request) 
 
 	reservation := models.Reservation{
 		FirstName: r.Form.Get("firstName"),
-		LastName: r.Form.Get("lastName"),
-		Email: r.Form.Get("email"),
-		Phone: r.Form.Get("phone"),
+		LastName:  r.Form.Get("lastName"),
+		Email:     r.Form.Get("email"),
+		Phone:     r.Form.Get("phone"),
 	}
 
 	form := forms.New(r.PostForm)
 
 	//form.Has("firstName", r)
 	form.Required("firstName", "lastName", "email")
+	form.MinLength("firstName", 3, r)
+	form.IsEmail("email")
 
 	if !form.Valid() {
 		data := make(map[string]interface{})
@@ -130,9 +132,29 @@ func (rh *RouteHandler) PostReservation(w http.ResponseWriter, r *http.Request) 
 		})
 		return
 	}
+
+	rh.App.Session.Put(r.Context(), "reservation", reservation)
+	http.Redirect(w, r, "/reservation-summary", http.StatusSeeOther)
 }
 
 // Contact renders the contact page
 func (rh *RouteHandler) Contact(w http.ResponseWriter, r *http.Request) {
 	render.RenderTemplate(w, r, "contact.page.tmpl", &models.TemplateData{})
+}
+
+func (rh *RouteHandler) ReservationSummary(w http.ResponseWriter, r *http.Request) {
+	reservation, ok := rh.App.Session.Get(r.Context(), "reservation").(models.Reservation)
+	if !ok {
+		log.Println("Cannot get item from session")
+		rh.App.Session.Put(r.Context(), "error", "There are no reservations made at this point")
+		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+		return
+	}
+
+	rh.App.Session.Remove(r.Context(), "reservation")
+	data := make(map[string]interface{})
+	data["reservation"] = reservation
+	render.RenderTemplate(w, r, "reservation-summary.page.tmpl", &models.TemplateData{
+		Data: data,
+	})
 }
