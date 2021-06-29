@@ -119,7 +119,7 @@ func (rh *RouteHandler) PostReservation(w http.ResponseWriter, r *http.Request) 
 
 	//form.Has("firstName", r)
 	form.Required("firstName", "lastName", "email")
-	form.MinLength("firstName", 3, r)
+	form.MinLength("firstName", 3)
 	form.IsEmail("email")
 
 	if !form.Valid() {
