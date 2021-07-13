@@ -9,11 +9,13 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/justinas/nosurf"
 	"github.com/sunil206b/smart_booking/internal/config"
+	"github.com/sunil206b/smart_booking/internal/helpers"
 	"github.com/sunil206b/smart_booking/internal/models"
 	"github.com/sunil206b/smart_booking/internal/render"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 )
@@ -22,6 +24,8 @@ var appConfig config.AppConfig
 var session *scs.SessionManager
 var templatesPath = "../../templates"
 var functions = template.FuncMap{}
+var infoLog *log.Logger
+var errorLog *log.Logger
 
 func getRoutes() http.Handler {
 	//what am I going to put in the session
@@ -29,6 +33,11 @@ func getRoutes() http.Handler {
 
 	//Change this to true when in the production
 	appConfig.InProduction = false
+	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	appConfig.InfoLog = infoLog
+
+	errorLog = log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+	appConfig.ErrorLog = errorLog
 
 	session = scs.New()
 	session.Lifetime = 24 * time.Hour
@@ -44,10 +53,11 @@ func getRoutes() http.Handler {
 	}
 	appConfig.TemplateCache = tc
 	appConfig.UseCache = true
-	render.NewTemplates(&appConfig)
+	render.NewRenderer(&appConfig)
 
 	rhHandler := NewRouteHandler(&appConfig)
 	NewHandler(rhHandler)
+	helpers.NewHelpers(&appConfig)
 
 	router := chi.NewRouter()
 	router.Use(middleware.Recoverer)

@@ -19,12 +19,12 @@ var appConfig *config.AppConfig
 
 var templatesPath string = "./templates"
 
-func NewTemplates(a *config.AppConfig) {
+func NewRenderer(a *config.AppConfig) {
 	appConfig = a
 }
 
-// RenderTemplate function will load the html files from the specified location and parses
-func RenderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, data *models.TemplateData) error {
+// Template function will load the html files from the specified location and parses
+func Template(w http.ResponseWriter, r *http.Request, tmpl string, data *models.TemplateData) error {
 	var tc map[string]*template.Template
 	if appConfig.UseCache {
 		tc = appConfig.TemplateCache
