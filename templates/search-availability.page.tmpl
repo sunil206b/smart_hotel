@@ -10,10 +10,10 @@
                     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
                     <div class="form-row" id="reservationDate">
                         <div class="col">
-                            <input required class="form-control" type="text" name="startDate" placeholder="Checkin">
+                            <input required class="form-control" type="text" name="start_date" placeholder="Start Date" autocomplete="off">
                         </div>
                         <div class="col">
-                            <input required class="form-control" type="text" name="endDate" placeholder="Checkout">
+                            <input required class="form-control" type="text" name="end_date" placeholder="End Date" autocomplete="off">
                         </div>
                     </div>
                     <hr>
@@ -29,6 +29,7 @@
         const elem = document.getElementById('reservationDate');
         const rangepicker = new DateRangePicker(elem, {
             // ...options
+            minDate: new Date()
         });
     </script>
 {{end}}}

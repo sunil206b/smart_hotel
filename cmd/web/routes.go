@@ -28,12 +28,26 @@ func routes(app *config.AppConfig) http.Handler {
 	router.Get("/search-availability", handlers.Handler.Availability)
 	router.Post("/search-availability", handlers.Handler.PostAvailability)
 	router.Post("/search-availability-json", handlers.Handler.AvailabilityJSON)
+	router.Get("/choose-room/{id}", handlers.Handler.ChooseRoom)
+	router.Get("/book-room", handlers.Handler.BookRoom)
 
 	router.Get("/make-reservations", handlers.Handler.Reservation)
 	router.Post("/make-reservations", handlers.Handler.PostReservation)
 	router.Get("/reservation-summary", handlers.Handler.ReservationSummary)
 
+	router.Get("/user/login", handlers.Handler.Login)
+	router.Post("/user/login", handlers.Handler.PostLogin)
+	router.Get("/user/logout", handlers.Handler.Logout)
+
 	fileServer := http.FileServer(http.Dir("./static/"))
 	router.Handle("/static/*", http.StripPrefix("/static", fileServer))
+
+	router.Route("/admin", func(r chi.Router) {
+		r.Use(Auth)
+		r.Get("/dashboard", handlers.Handler.AdminDashBoard)
+		r.Get("/reservations-new", handlers.Handler.AdminNewReservations)
+		r.Get("/reservations-all", handlers.Handler.AdminAllReservations)
+		r.Get("/reservations-calender", handlers.Handler.AdminReservationsCalender)
+	})
 	return router
 }

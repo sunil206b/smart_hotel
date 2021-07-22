@@ -9,4 +9,6 @@ require (
 	github.com/justinas/nosurf v1.1.1
 	github.com/lib/pq v1.10.2 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
+	github.com/xhit/go-simple-mail/v2 v2.10.0 // indirect
+	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
 )

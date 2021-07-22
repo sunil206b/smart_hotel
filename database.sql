@@ -82,3 +82,18 @@ select count(id) from room_restrictions where '2021-07-19' < end_date and '2021-
 
 -- search dates are inside of existing reservations
 select count(id) from room_restrictions where '2021-07-14' < end_date and '2021-07-17' > start_date;
+
+select r.id, r.room_name from rooms r
+where r.id not in (select rr.room_id from room_restrictions rr
+where '2021-07-19' < rr.end_date and '2021-07-25' > rr.start_date);
+
+insert into room_restrictions(start_date, end_date, created_at, updated_at, room_id, reservation_id, restriction_id) values ('2021-07-13', '2021-07-18', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 3, null, 1);
+
+select id, room_name, created_at, updated_at from rooms where id = 1;
+
+select id, first_name, last_name, email, password, access_level, created_at, updated_at from users where id = 1;
+
+select id, password from users where email = '';
+
+insert into users(first_name, last_name, email, password, created_at, updated_at, access_level)
+values ('test', 'test', 'admin@admin.com', '$2a$10$Yi9z5zvVRP1Tt3OzMFS91.OLTiaQHyykO.S0xanTubOzS7Hvo3oEK', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 3);

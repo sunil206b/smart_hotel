@@ -44,10 +44,29 @@
                     <a class="nav-link" href="/contact" tabindex="-1" aria-disabled="true">Contact</a>
                 </li>
             </ul>
-            <form class="form-inline my-2 my-lg-0">
-                <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">
-                <button class="btn btn-outline-info my-2 my-sm-0" type="submit">Search</button>
-            </form>
+            <ul class="navbar-nav ml-auto">
+                    {{if .IsAuthenticated }}
+                        <li class="nav-item dropdown mr-3">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Admin
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <a class="dropdown-item" href="/admin/dashboard">Dashboard</a>
+                                <a href="/user/logout" class="dropdown-item">Logout</a>
+                            </div>
+                        </li>
+                    {{else}}
+                        <li class="nav-item mr-3">
+                            <a href="/user/login" class="nav-link">Login</a>
+                        </li>
+                    {{end}}
+                <li class="nav-item">
+                    <form class="form-inline">
+                        <input class="form-control" type="search" placeholder="Search" aria-label="Search">
+                        <button class="btn btn-outline-info" type="submit">Search</button>
+                    </form>
+                </li>
+            </ul>
         </div>
     </nav>
     {{block "content" .}}
@@ -167,13 +186,15 @@
             }
 
             let multiInputModel = async (c) => {
-                const {msg = '', title = ''} = c;
+                const {icon = '', msg = '', title = '', showConfirmButton = true,} = c;
                 const { value: result } = await Swal.fire({
+                    icon: icon,
                     title: title,
                     html: msg,
                     background: false,
                     focusConfirm: false,
                     showCancelButton: true,
+                    showConfirmButton: showConfirmButton,
                     willOpen: () => {
                         if (c.willOpen !== undefined) {
                             c.willOpen();

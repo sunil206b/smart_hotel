@@ -36,12 +36,10 @@ func main() {
 		log.Fatalf("Failed to run with error %v\n", err)
 	}
 	defer db.SQL.Close()
+	defer close(appConfig.MailChan)
 
-	//http.HandleFunc("/", handlers.Handler.Home)
-	//http.HandleFunc("/about", handlers.Handler.About)
-	//if err := http.ListenAndServe(":8080", nil); err != nil {
-	//	log.Fatalln(err)
-	//}
+	log.Println("Starting mail channel listener....")
+	listenForMail()
 
 	srv := &http.Server{
 		Handler:      routes(&appConfig),
@@ -60,6 +58,9 @@ func run() (*driver.DB, error) {
 	gob.Register(models.Room{})
 	gob.Register(models.RoomRestriction{})
 	gob.Register(models.Restriction{})
+
+	mailChan := make(chan *models.MailData)
+	appConfig.MailChan = mailChan
 
 	//Change this to true when in the production
 	appConfig.InProduction = false

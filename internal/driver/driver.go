@@ -31,7 +31,6 @@ func ConnectPQSQL(dsn string) (*DB, error) {
 	d.SetConnMaxIdleTime(pqMaxDBLifetime)
 
 	dbConn.SQL = d
-	log.Println("Connected to database...")
 	return dbConn, nil
 }
 
