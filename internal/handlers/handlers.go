@@ -13,9 +13,9 @@ import (
 	"github.com/sunil206b/smart_booking/internal/render"
 	"github.com/sunil206b/smart_booking/internal/repository"
 	"github.com/sunil206b/smart_booking/internal/repository/dbrepo"
-	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -367,12 +367,14 @@ func (rh *RouteHandler) BookRoom(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/make-reservations", http.StatusSeeOther)
 }
 
+// Login displays the login page
 func (rh *RouteHandler) Login(w http.ResponseWriter, r *http.Request) {
 	render.Template(w, r, "login.page.tmpl", &models.TemplateData{
 		Form: forms.New(nil),
 	})
 }
 
+// PostLogin allows the user to login
 func (rh *RouteHandler) PostLogin(w http.ResponseWriter, r *http.Request) {
 	_ = rh.App.Session.RenewToken(r.Context())
 
@@ -395,7 +397,6 @@ func (rh *RouteHandler) PostLogin(w http.ResponseWriter, r *http.Request) {
 	password := r.Form.Get("password")
 	id, _, err := rh.DB.Authenticate(email, password)
 	if err != nil {
-		log.Println(err)
 		rh.App.Session.Put(r.Context(), "error", "Invalid email or password")
 		http.Redirect(w, r, "/user/login", http.StatusSeeOther)
 		return
@@ -406,6 +407,7 @@ func (rh *RouteHandler) PostLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// Logout allows the user to logout
 func (rh *RouteHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	_ = rh.App.Session.Destroy(r.Context())
 	_ = rh.App.Session.RenewToken(r.Context())
@@ -413,18 +415,126 @@ func (rh *RouteHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/user/login", http.StatusSeeOther)
 }
 
+// AdminDashBoard displays reservation details in the admin tool
 func (rh *RouteHandler) AdminDashBoard(w http.ResponseWriter, r *http.Request) {
 	render.Template(w, r, "admin-dashboard.page.tmpl", &models.TemplateData{})
 }
 
+// AdminNewReservations shows all new reservations in the admin tool
 func (rh *RouteHandler) AdminNewReservations(w http.ResponseWriter, r *http.Request) {
-	render.Template(w, r, "admin-new-reservations.page.tmpl", &models.TemplateData{})
+	rs, err := rh.DB.AllNewReservations()
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	data := make(map[string]interface{})
+	data["reservations"] = rs
+	render.Template(w, r, "admin-new-reservations.page.tmpl", &models.TemplateData{
+		Data: data,
+	})
 }
 
+// AdminAllReservations shows all reservations in the admin tool
 func (rh *RouteHandler) AdminAllReservations(w http.ResponseWriter, r *http.Request) {
-	render.Template(w, r, "admin-all-reservations.page.tmpl", &models.TemplateData{})
+	rs, err := rh.DB.AllReservations()
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	data := make(map[string]interface{})
+	data["reservations"] = rs
+	render.Template(w, r, "admin-all-reservations.page.tmpl", &models.TemplateData{
+		Data: data,
+	})
 }
 
+// AdminShowReservation shows single reservation in the admin page
+func (rh *RouteHandler) AdminShowReservation(w http.ResponseWriter, r *http.Request) {
+	exploded := strings.Split(r.RequestURI, "/")
+	id, err := strconv.Atoi(exploded[4])
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	src := exploded[3]
+	stringMap := make(map[string]string)
+	stringMap["src"] = src
+
+	res, err := rh.DB.GetReservationByID(id)
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	data := make(map[string]interface{})
+	data["reservation"] = res
+	render.Template(w, r, "admin-reservation-show.page.tmpl", &models.TemplateData{
+		StringMap: stringMap,
+		Data:      data,
+		Form:      forms.New(nil),
+	})
+}
+
+func (rh *RouteHandler) AdminPostShowReservation(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	exploded := strings.Split(r.RequestURI, "/")
+	id, err := strconv.Atoi(exploded[4])
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	src := exploded[3]
+
+	res, err := rh.DB.GetReservationByID(id)
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	res.FirstName = r.Form.Get("first_name")
+	res.LastName = r.Form.Get("last_name")
+	res.Email = r.Form.Get("email")
+	res.Phone = r.Form.Get("phone")
+
+	err = rh.DB.UpdateReservation(&res)
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+
+	rh.App.Session.Put(r.Context(), "flash", "Changes saved")
+	http.Redirect(w, r, fmt.Sprintf("/admin/reservations-%s", src), http.StatusSeeOther)
+}
+
+// AdminReservationsCalender shows open calender rooms in the admin tool
 func (rh *RouteHandler) AdminReservationsCalender(w http.ResponseWriter, r *http.Request) {
 	render.Template(w, r, "admin-reservations-calender.page.tmpl", &models.TemplateData{})
+}
+
+// AdminProcessReservation marks a reservation as processed
+func (rh *RouteHandler) AdminProcessReservation(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	src := chi.URLParam(r, "src")
+	err := rh.DB.UpdateProcessedReservation(id, 1)
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	rh.App.Session.Put(r.Context(), "flash", "Reservation marked as processed")
+	http.Redirect(w, r, fmt.Sprintf("/admin/reservations-%s", src), http.StatusSeeOther)
+}
+
+// AdminDeleteReservation deletes a reservation
+func (rh *RouteHandler) AdminDeleteReservation(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	src := chi.URLParam(r, "src")
+	err := rh.DB.DeleteReservation(id)
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	rh.App.Session.Put(r.Context(), "flash", "Reservation Deleted")
+	http.Redirect(w, r, fmt.Sprintf("/admin/reservations-%s", src), http.StatusSeeOther)
 }

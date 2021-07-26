@@ -11,9 +11,16 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"time"
 )
 
-var functions = template.FuncMap{}
+const (
+	apiDateLayout = "01/02/2006"
+)
+
+var functions = template.FuncMap{
+	"humanDate": HumanDate,
+}
 
 var appConfig *config.AppConfig
 
@@ -87,4 +94,9 @@ func AddDefaultData(data *models.TemplateData, r *http.Request) {
 	if appConfig.Session.Exists(r.Context(), "user_id") {
 		data.IsAuthenticated = true
 	}
+}
+
+//HumanDate returns date in human readable for mm/dd/yyyy
+func HumanDate(t time.Time) string {
+	return t.Format(apiDateLayout)
 }

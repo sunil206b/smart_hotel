@@ -31,6 +31,27 @@ const (
                  	updated_at = $5 where id = $6`
 
 	GetUserByEmail = `select id, password from users where email = $1`
+
+	AllReservations = `select rs.id, rs.first_name, rs.last_name, rs.email, rs.phone, rs.check_in, rs.check_out,
+						rs.created_at, rs.updated_at, rs.room_id, rs.processed, r.id, r.room_name from reservations rs
+						inner join rooms r on rs.room_id = r.id order by rs.check_in desc`
+
+	AllNewReservations = `select rs.id, rs.first_name, rs.last_name, rs.email, rs.phone, rs.check_in, rs.check_out,
+						rs.created_at, rs.updated_at, rs.room_id, r.id, r.room_name from reservations rs
+						inner join rooms r on rs.room_id = r.id where rs.processed = 0 order by rs.check_in desc`
+
+	GetReservationByID = `select rs.id, rs.first_name, rs.last_name, rs.email, rs.phone, rs.check_in, rs.check_out,
+							rs.created_at, rs.updated_at, rs.room_id, rs.processed, r.id, r.room_name from reservations rs
+							inner join rooms r on rs.room_id = r.id where rs.id = $1`
+
+	UpdateReservation = `update reservations set first_name = $1, last_name = $2, email = $3, phone = $4, updated_at = $5
+							where id = $6`
+
+	DeleteRoomRestriction = `delete from room_restrictions where reservation_id = $1`
+
+	DeleteReservation = `delete from reservations where id = $1`
+
+	UpdateProcessedReservation = `update reservations set processed = $1, updated_at = $2 where id = $3`
 )
 
 func (pg *postgresDBRepo) AllUsers() bool {
@@ -108,7 +129,7 @@ func (pg *postgresDBRepo) SearchAllAvailableRooms(start, end time.Time) ([]model
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("error in SearchAllAvailableRooms() method while executing query to search all available rooms: %v\n", err))
 	}
-
+	defer rows.Close()
 	if err = rows.Err(); err != nil {
 		return nil, errors.New(fmt.Sprintf("error in SearchAllAvailableRooms() method while checking for errors in the query rows: %v\n", err))
 	}
@@ -201,4 +222,145 @@ func (pg *postgresDBRepo) Authenticate(email, testPass string) (int, string, err
 		return 0, "", err
 	}
 	return id, hashedPass, nil
+}
+
+// AllReservations returns a slice of all reservations
+func (pg *postgresDBRepo) AllReservations() ([]models.Reservation, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	stmt, err := pg.DB.Prepare(AllReservations)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("error in AllReservations() method while preparing query to get all reservations: %v\n", err))
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("error in AllReservations() method while executing query to get all reservations: %v\n", err))
+	}
+	defer rows.Close()
+	if err = rows.Err(); err != nil {
+		return nil, errors.New(fmt.Sprintf("error in AllReservations() method while scanning rows for reservations: %v\n", err))
+	}
+	var reservations []models.Reservation
+	for rows.Next() {
+		var rs models.Reservation
+		err = rows.Scan(&rs.ID, &rs.FirstName, &rs.LastName, &rs.Email, &rs.Phone,
+			&rs.CheckInDate, &rs.CheckOutDate, &rs.CreatedAt, &rs.UpdatedAt, &rs.RoomID,
+			&rs.Processed, &rs.Room.ID, &rs.Room.RoomName)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("error in AllReservations() method while scanning each row for reservation: %v\n", err))
+		}
+		reservations = append(reservations, rs)
+	}
+	return reservations, nil
+}
+
+// AllNewReservations returns a slice of all new reservations
+func (pg *postgresDBRepo) AllNewReservations() ([]models.Reservation, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	stmt, err := pg.DB.Prepare(AllNewReservations)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("error in AllReservations() method while preparing query to get all reservations: %v\n", err))
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("error in AllReservations() method while executing query to get all reservations: %v\n", err))
+	}
+	defer rows.Close()
+	if err = rows.Err(); err != nil {
+		return nil, errors.New(fmt.Sprintf("error in AllReservations() method while scanning rows for reservations: %v\n", err))
+	}
+	var reservations []models.Reservation
+	for rows.Next() {
+		var rs models.Reservation
+		err = rows.Scan(&rs.ID, &rs.FirstName, &rs.LastName, &rs.Email, &rs.Phone,
+			&rs.CheckInDate, &rs.CheckOutDate, &rs.CreatedAt, &rs.UpdatedAt, &rs.RoomID,
+			&rs.Room.ID, &rs.Room.RoomName)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("error in AllReservations() method while scanning each row for reservation: %v\n", err))
+		}
+		reservations = append(reservations, rs)
+	}
+	return reservations, nil
+}
+
+// GetReservationByID returns one reservation by ID
+func (pg *postgresDBRepo) GetReservationByID(id int) (models.Reservation, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	var rs models.Reservation
+	stmt, err := pg.DB.Prepare(GetReservationByID)
+	if err != nil {
+		return rs, errors.New(fmt.Sprintf("error in GetReservationByID() method while preparing query to get a reservation: %v\n", err))
+	}
+	defer stmt.Close()
+
+	err = stmt.QueryRowContext(ctx, id).Scan(&rs.ID, &rs.FirstName, &rs.LastName, &rs.Email, &rs.Phone,
+		&rs.CheckInDate, &rs.CheckOutDate, &rs.CreatedAt, &rs.UpdatedAt, &rs.RoomID,
+		&rs.Processed, &rs.Room.ID, &rs.Room.RoomName)
+	if err != nil {
+		return rs, errors.New(fmt.Sprintf("error in GetReservationByID() method while executing query to get a reservation: %v\n", err))
+	}
+	return rs, nil
+}
+
+//UpdateReservation updates the reservation in the database
+func (pg *postgresDBRepo) UpdateReservation(res *models.Reservation) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	stmt, err := pg.DB.Prepare(UpdateReservation)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in UpdateReservation() method while preparing query to update a reservation: %v\n", err))
+	}
+	defer stmt.Close()
+	_, err = stmt.ExecContext(ctx, res.FirstName, res.LastName, res.Email, res.Phone, time.Now(), res.ID)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in UpdateReservation() method while executing the update reservation: %v\n", err))
+	}
+	return nil
+}
+
+// DeleteReservation deletes reservation by id
+func (pg *postgresDBRepo) DeleteReservation(id int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	stmt1, err := pg.DB.Prepare(DeleteRoomRestriction)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in DeleteReservation() method while preparing query to delete a room restriction: %v\n", err))
+	}
+	defer stmt1.Close()
+	_, err = stmt1.ExecContext(ctx, id)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in DeleteReservation() method while executing the delete room restriction: %v\n", err))
+	}
+	stmt2, err := pg.DB.Prepare(DeleteReservation)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in DeleteReservation() method while preparing query to delete a reservation: %v\n", err))
+	}
+	defer stmt2.Close()
+	_, err = stmt2.ExecContext(ctx, id)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in DeleteReservation() method while executing the delete reservation: %v\n", err))
+	}
+	return nil
+}
+
+//UpdateProcessedReservation updates processed for a reservation
+func (pg *postgresDBRepo) UpdateProcessedReservation(id, processed int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	stmt, err := pg.DB.Prepare(UpdateProcessedReservation)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in UpdateProcessedReservation() method while preparing query to update a reservation: %v\n", err))
+	}
+	defer stmt.Close()
+	_, err = stmt.ExecContext(ctx, processed, time.Now(), id)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in UpdateProcessedReservation() method while executing the update reservation: %v\n", err))
+	}
+	return nil
 }

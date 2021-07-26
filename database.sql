@@ -97,3 +97,19 @@ select id, password from users where email = '';
 
 insert into users(first_name, last_name, email, password, created_at, updated_at, access_level)
 values ('test', 'test', 'admin@admin.com', '$2a$10$Yi9z5zvVRP1Tt3OzMFS91.OLTiaQHyykO.S0xanTubOzS7Hvo3oEK', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 3);
+
+select rs.id, rs.first_name, rs.last_name, rs.email, rs.phone, rs.check_in, rs.check_out,
+rs.created_at, rs.updated_at, rs.room_id, r.id, r.room_name from reservations rs
+inner join rooms r on rs.room_id = r.id order by rs.check_in asc;
+
+ALTER TABLE reservations ADD COLUMN processed integer default 0;
+
+select rs.id, rs.first_name, rs.last_name, rs.email, rs.phone, rs.check_in, rs.check_out,
+rs.created_at, rs.updated_at, rs.room_id, rs.processed, r.id, r.room_name from reservations rs
+inner join rooms r on rs.room_id = r.id where rs.id = 1;
+
+delete from room_restrictions where reservation_id = 1;
+delete from reservations where id = 1;
+
+ALTER TABLE room_restrictions ADD FOREIGN KEY (reservation_id)
+    REFERENCES reservations(id) ON DELETE CASCADE;
