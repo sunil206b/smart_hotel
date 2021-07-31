@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	apiDateLayout = "01/02/2006"
+	apiDateLayout         = "01/02/2006"
+	restrictionDateLayout = "01/2/2006"
 )
 
 var Handler *RouteHandler
@@ -510,7 +511,83 @@ func (rh *RouteHandler) AdminPostShowReservation(w http.ResponseWriter, r *http.
 
 // AdminReservationsCalender shows open calender rooms in the admin tool
 func (rh *RouteHandler) AdminReservationsCalender(w http.ResponseWriter, r *http.Request) {
-	render.Template(w, r, "admin-reservations-calender.page.tmpl", &models.TemplateData{})
+	now := time.Now()
+	if r.URL.Query().Get("y") != "" {
+		year, _ := strconv.Atoi(r.URL.Query().Get("y"))
+		month, _ := strconv.Atoi(r.URL.Query().Get("m"))
+		now = time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	}
+
+	data := make(map[string]interface{})
+	data["now"] = now
+
+	next := now.AddDate(0, 1, 0)
+	prev := now.AddDate(0, -1, 0)
+
+	nextMonth := next.Format("01")
+	nextMonthYear := next.Format("2006")
+
+	prevMonth := prev.Format("01")
+	prevMonthYear := prev.Format("2006")
+
+	stringMap := make(map[string]string)
+	stringMap["next_month"] = nextMonth
+	stringMap["next_month_year"] = nextMonthYear
+	stringMap["prev_month"] = prevMonth
+	stringMap["prev_month_year"] = prevMonthYear
+	stringMap["current_month"] = now.Format("01")
+	stringMap["current_month_year"] = now.Format("2006")
+
+	currentYear, currentMonth, _ := now.Date()
+	currentLocation := now.Location()
+	firstOfMonth := time.Date(currentYear, currentMonth, 1, 0, 0, 0, 0, currentLocation)
+	lastOfMonth := firstOfMonth.AddDate(0, 1, -1)
+
+	intMap := make(map[string]int)
+	intMap["days_in_month"] = lastOfMonth.Day()
+
+	rooms, err := rh.DB.AllRooms()
+	if err != nil {
+		helpers.ServerError(w, err)
+		return
+	}
+	data["rooms"] = rooms
+
+	for _, room := range rooms {
+		reservationMap := make(map[string]int)
+		blockMap := make(map[string]int)
+
+		for d := firstOfMonth; d.After(lastOfMonth) == false; d = d.AddDate(0, 0, 1) {
+			reservationMap[d.Format("01/2/2006")] = 0
+			blockMap[d.Format("01/2/2006")] = 0
+		}
+
+		restrictions, err := rh.DB.GetRestrictionsForRoomByDate(room.ID, firstOfMonth, lastOfMonth)
+		if err != nil {
+			helpers.ServerError(w, err)
+			return
+		}
+		for _, res := range restrictions {
+			if res.ReservationID > 0 {
+				for d := res.StartDate; d.After(res.EndDate) == false; d = d.AddDate(0, 0, 1) {
+					reservationMap[d.Format("01/2/2006")] = res.ReservationID
+				}
+			} else {
+				blockMap[res.StartDate.Format("01/2/2006")] = res.ID
+			}
+		}
+
+		data[fmt.Sprintf("reservation_map_%d", room.ID)] = reservationMap
+		data[fmt.Sprintf("block_map_%d", room.ID)] = blockMap
+
+		rh.App.Session.Put(r.Context(), fmt.Sprintf("block_map_%d", room.ID), blockMap)
+	}
+
+	render.Template(w, r, "admin-reservations-calender.page.tmpl", &models.TemplateData{
+		StringMap: stringMap,
+		Data:      data,
+		IntMap:    intMap,
+	})
 }
 
 // AdminProcessReservation marks a reservation as processed

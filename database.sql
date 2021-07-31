@@ -113,3 +113,8 @@ delete from reservations where id = 1;
 
 ALTER TABLE room_restrictions ADD FOREIGN KEY (reservation_id)
     REFERENCES reservations(id) ON DELETE CASCADE;
+
+select id, room_name, created_at, updated_at from rooms order by room_name;
+
+select id, start_date, end_date, room_id, coalesce(reservation_id, 0), restriction_id from room_restrictions
+where $1 < end_date and $2 >= start_date and room_id = $3;

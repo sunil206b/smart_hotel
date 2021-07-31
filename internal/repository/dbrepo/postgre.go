@@ -52,6 +52,11 @@ const (
 	DeleteReservation = `delete from reservations where id = $1`
 
 	UpdateProcessedReservation = `update reservations set processed = $1, updated_at = $2 where id = $3`
+
+	AllRooms = `select id, room_name, created_at, updated_at from rooms order by room_name`
+
+	GetRoomRestrictionsByDate = `select id, start_date, end_date, room_id, coalesce(reservation_id, 0), restriction_id from room_restrictions
+									where $1 < end_date and $2 >= start_date and room_id = $3`
 )
 
 func (pg *postgresDBRepo) AllUsers() bool {
@@ -363,4 +368,64 @@ func (pg *postgresDBRepo) UpdateProcessedReservation(id, processed int) error {
 		return errors.New(fmt.Sprintf("error in UpdateProcessedReservation() method while executing the update reservation: %v\n", err))
 	}
 	return nil
+}
+
+// AllRooms returns all the rooms
+func (pg *postgresDBRepo) AllRooms() ([]models.Room, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	stmt, err := pg.DB.Prepare(AllRooms)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("error in AllRooms() method while preparing query to get all rooms: %v\n", err))
+	}
+	defer stmt.Close()
+	var rooms []models.Room
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("error in AllRooms() method while executing query to get all rooms: %v\n", err))
+	}
+	defer rows.Close()
+	if err = rows.Err(); err != nil {
+		return nil, errors.New(fmt.Sprintf("error in AllRooms() method while scanning rows to get all rooms: %v\n", err))
+	}
+
+	for rows.Next() {
+		var room models.Room
+		err = rows.Scan(&room.ID, &room.RoomName, &room.CreatedAt, &room.UpdatedAt)
+		if err = rows.Err(); err != nil {
+			return nil, errors.New(fmt.Sprintf("error in AllRooms() method while scanning each row to get a rooms: %v\n", err))
+		}
+		rooms = append(rooms, room)
+	}
+	return rooms, nil
+}
+
+//GetRestrictionsForRoomByDate returns all restrictions for a particular room by date range
+func (pg *postgresDBRepo) GetRestrictionsForRoomByDate(roomID int, start, end time.Time) ([]models.RoomRestriction, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	stmt, err := pg.DB.Prepare(GetRoomRestrictionsByDate)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("error in GetRestrictionsForRoomByDate() method while preparing query to get room restrictions: %v\n", err))
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx, start, end, roomID)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("error in GetRestrictionsForRoomByDate() method while executing query to get room restrictions: %v\n", err))
+	}
+	defer rows.Close()
+	if err = rows.Err(); err != nil {
+		return nil, errors.New(fmt.Sprintf("error in GetRestrictionsForRoomByDate() method while scanning all rows: %v\n", err))
+	}
+	var restrictions []models.RoomRestriction
+	for rows.Next() {
+		var res models.RoomRestriction
+		err = rows.Scan(&res.ID, &res.StartDate, &res.EndDate, &res.RoomID, &res.ReservationID, &res.RestrictionID)
+		if err = rows.Err(); err != nil {
+			return nil, errors.New(fmt.Sprintf("error in GetRestrictionsForRoomByDate() method while scanning each row to get room restriction: %v\n", err))
+		}
+		restrictions = append(restrictions, res)
+	}
+	return restrictions, nil
 }

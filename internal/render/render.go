@@ -19,7 +19,10 @@ const (
 )
 
 var functions = template.FuncMap{
-	"humanDate": HumanDate,
+	"humanDate":  HumanDate,
+	"formatDate": FormatDate,
+	"iterate":    Iterate,
+	"add":        Add,
 }
 
 var appConfig *config.AppConfig
@@ -99,4 +102,24 @@ func AddDefaultData(data *models.TemplateData, r *http.Request) {
 //HumanDate returns date in human readable for mm/dd/yyyy
 func HumanDate(t time.Time) string {
 	return t.Format(apiDateLayout)
+}
+
+// FormatDate formats the given date in the given format
+func FormatDate(t time.Time, f string) string {
+	return t.Format(f)
+}
+
+// Iterate returns a slice of int, starting at 1, going to count
+func Iterate(count int) []int {
+	var i int
+	var items []int
+	for i = 0; i < count; i++ {
+		items = append(items, i)
+	}
+	return items
+}
+
+// Add returns sum of two integers
+func Add(a, b int) int {
+	return a + b
 }
