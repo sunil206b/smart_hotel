@@ -57,6 +57,10 @@ const (
 
 	GetRoomRestrictionsByDate = `select id, start_date, end_date, room_id, coalesce(reservation_id, 0), restriction_id from room_restrictions
 									where $1 < end_date and $2 >= start_date and room_id = $3`
+
+	CreateBlockForRoom = `insert into room_restrictions(start_date, end_date, created_at, updated_at, room_id, restriction_id)
+ 							values ($1, $2, $3,$4, $5, $6)`
+	DeleteBlockByID = `delete from room_restrictions where id = $1`
 )
 
 func (pg *postgresDBRepo) AllUsers() bool {
@@ -428,4 +432,36 @@ func (pg *postgresDBRepo) GetRestrictionsForRoomByDate(roomID int, start, end ti
 		restrictions = append(restrictions, res)
 	}
 	return restrictions, nil
+}
+
+//CreateBlockForRoom will create the restriction for a given room
+func (pg postgresDBRepo) CreateBlockForRoom(id int, startDate time.Time) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	stmt, err := pg.DB.Prepare(CreateBlockForRoom)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in CreateBlockForRoom() method while preparing query to create room restriction: %v\n", err))
+	}
+	defer stmt.Close()
+	_, err = stmt.ExecContext(ctx, startDate, startDate.AddDate(0, 0, 1), time.Now(), time.Now(), id, 2)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in CreateBlockForRoom() method while executing query to create room restriction: %v\n", err))
+	}
+	return nil
+}
+
+//DeleteBlockByID deletes a room restriction
+func (pg postgresDBRepo) DeleteBlockByID(id int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	stmt, err := pg.DB.Prepare(DeleteBlockByID)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in DeleteBlockByID() method while preparing query to delete room restriction: %v\n", err))
+	}
+	defer stmt.Close()
+	_, err = stmt.ExecContext(ctx, id)
+	if err != nil {
+		return errors.New(fmt.Sprintf("error in DeleteBlockByID() method while executing query to delete room restriction: %v\n", err))
+	}
+	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/gob"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/alexedwards/scs/v2"
 	"github.com/lib/pq"
@@ -60,11 +61,28 @@ func run() (*driver.DB, error) {
 	gob.Register(models.Restriction{})
 	gob.Register(map[string]int{})
 
+	// Read flags
+	inProduction := flag.Bool("production", true, "Application is in production")
+	useCache := flag.Bool("cache", true, "Use Template Cache")
+	//dbHost := flag.String("dbhost", "localhost", "Database host")
+	//dbName := flag.String("dbname", "", "Database name")
+	//dbUser := flag.String("dbuser", "", "Database user")
+	//dbPass := flag.String("dbpass", "", "Database password")
+	//dbPort := flag.String("dbport", "5432", "Database port number")
+	//dbSSL := flag.String("dbssl", "disabled", "Database ssl settings (disabled, prefer, required)")
+	flag.Parse()
+
+	//if *dbName == "" || *dbUser == "" {
+	//	log.Println("Missing required flags")
+	//	os.Exit(1)
+	//}
+
 	mailChan := make(chan *models.MailData)
 	appConfig.MailChan = mailChan
 
 	//Change this to true when in the production
-	appConfig.InProduction = false
+	appConfig.InProduction = *inProduction
+	appConfig.UseCache = *useCache
 
 	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	appConfig.InfoLog = infoLog
@@ -82,6 +100,8 @@ func run() (*driver.DB, error) {
 
 	//connect to database
 	log.Println("Connecting to database...")
+	//connStr := fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=%s", *dbHost, *dbPort, *dbName, *dbUser, *dbPass, *dbSSL)
+	//db, err := driver.ConnectPQSQL(connStr)
 	pgURL, err := pq.ParseURL(os.Getenv("ELEPHANTSQL_URL"))
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("failed to parse Elephant SQL URL %v\n", err))
@@ -96,7 +116,6 @@ func run() (*driver.DB, error) {
 		return nil, errors.New(fmt.Sprintf("error while creating template cache: %v\n", err))
 	}
 	appConfig.TemplateCache = tc
-	appConfig.UseCache = false
 	render.NewRenderer(&appConfig)
 
 	rhHandler := handlers.NewRouteHandler(&appConfig, db)

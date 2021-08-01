@@ -118,3 +118,10 @@ select id, room_name, created_at, updated_at from rooms order by room_name;
 
 select id, start_date, end_date, room_id, coalesce(reservation_id, 0), restriction_id from room_restrictions
 where $1 < end_date and $2 >= start_date and room_id = $3;
+
+insert into restrictions(restriction_name, created_at, updated_at) values ('Block', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+insert into room_restrictions(start_date, end_date, created_at, updated_at, room_id, restriction_id)
+ values ($1, $2, $3,$4, $5, $6);
+
+delete from room_restrictions where id = $1;

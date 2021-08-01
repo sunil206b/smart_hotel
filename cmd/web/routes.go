@@ -43,15 +43,16 @@ func routes(app *config.AppConfig) http.Handler {
 	router.Handle("/static/*", http.StripPrefix("/static", fileServer))
 
 	router.Route("/admin", func(r chi.Router) {
-		//r.Use(Auth)
+		r.Use(Auth)
 		r.Get("/dashboard", handlers.Handler.AdminDashBoard)
 		r.Get("/reservations-new", handlers.Handler.AdminNewReservations)
 		r.Get("/reservations-all", handlers.Handler.AdminAllReservations)
 		r.Get("/reservations-calender", handlers.Handler.AdminReservationsCalender)
-		r.Get("/process-reservation/{src}/{id}", handlers.Handler.AdminProcessReservation)
-		r.Get("/delete-reservation/{src}/{id}", handlers.Handler.AdminDeleteReservation)
+		r.Post("/reservations-calender", handlers.Handler.AdminPostReservationsCalender)
+		r.Get("/process-reservation/{src}/{id}/do", handlers.Handler.AdminProcessReservation)
+		r.Get("/delete-reservation/{src}/{id}/do", handlers.Handler.AdminDeleteReservation)
 
-		r.Get("/reservations/{src}/{id}", handlers.Handler.AdminShowReservation)
+		r.Get("/reservations/{src}/{id}/show", handlers.Handler.AdminShowReservation)
 		r.Post("/reservations/{src}/{id}", handlers.Handler.AdminPostShowReservation)
 	})
 	return router
